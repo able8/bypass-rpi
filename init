@@ -1,48 +1,34 @@
 #!/bin/bash
-chinaip_file=/home/whiteip/chinaips
-customip_dir=/home/whiteip/custom
+WHITE_DIR=/bypass
 
 # create or update a ipset with iplist file
 UPDATE-IPSET() {
-	ipset_name=$1
-	iplist_file=$2
+	ipset=$1
 
-	if [ -f $iplist_file ] && [ -s $iplist_file ]; then
-		echo "update $ipset_name list start ..."
-		ipset create -exist $ipset_name hash:net
-		ipset flush $ipset_name
+	if [ -f $ipset ] && [ -s $ipset ]; then
+		echo "update $ipset list start ..."
+		ipset create -exist $ipset hash:net
+		ipset flush $ipset
 
 		while read ip; do
-		  ipset -q add $ipset_name $ip 
-		done < $iplist_file
+		  ipset -q add $ipset $ip 
+		done < $ipset
 
-		echo "update $ipset_name list ... done"
+		echo "update $ipset list ... done"
 	fi
 }
 
-# update ips in ipset used by default rules
-UPDATE-DEFAULT-IPSET() {
-	UPDATE-IPSET "chinaips" $chinaip_file
+UPDATE-ALL-IPSETS() {
+  for conf in $WHITE_DIR/*
+  do
+    echo "$conf"
+    UPDATE-IPSET $conf
+  done
 }
 
-# update ips in ipset used by custom rules
-UPDATE-CUSTOM-IPSET() {
-	for file in "$customip_dir"/*
-	do
-		file_name=${file#*$customip_dir/}
-		port=${file_name#*--}
-		if [[ $port =~ ^-?[0-9]+$ ]]; then
-			ipset_name=${file_name%--*}
-		else
-			ipset_name=$file_name
-		fi
 
-		# update custom ipset
-		UPDATE-IPSET $ipset_name $file
-	done
-}
 
-# create iptables CHAIN
+# create iptables CHAIN BYPASS
 CREATE-CHAIN() {
 	## create chain BYPASS
 	iptables -t nat -N BYPASS
@@ -50,72 +36,36 @@ CREATE-CHAIN() {
 }
 
 # add default white list
-APPEND-DEFAULT-RULE-WHITELIST() {
-	# add local network ips in whitelist 
-    iptables -t nat -A BYPASS -p tcp -d 0.0.0.0/8 -j RETURN
-    iptables -t nat -A BYPASS -p tcp -d 10.0.0.0/8 -j RETURN
-    iptables -t nat -A BYPASS -p tcp -d 127.0.0.0/8 -j RETURN
-    iptables -t nat -A BYPASS -p tcp -d 169.254.0.0/16 -j RETURN
-    iptables -t nat -A BYPASS -p tcp -d 172.16.0.0/12 -j RETURN
-    iptables -t nat -A BYPASS -p tcp -d 192.168.0.0/16 -j RETURN
-    iptables -t nat -A BYPASS -p tcp -d 224.0.0.0/4 -j RETURN
-    iptables -t nat -A BYPASS -p tcp -d 240.0.0.0/4 -j RETURN
-	
-	# add china ips in whitelist
- 	if [ -f $chinaip_file ] && [ -s $chinaip_file ]; then
-		iptables -t nat -A BYPASS -p tcp --match set --match-set chinaips dst -j RETURN
-	fi
+APPEND-RULE-WHITELIST() {
+  for conf in $WHITE_DIR/*
+  do
+    if [ -f $conf ] && [ -s $conf ]; then
+      iptables -t nat -A BYPASS -p tcp --match set --match-set "$conf" dst -j RETURN
+    fi
+  done
 }
 
 # redirect all other packets to `DEFAULT_PORT`, set by docker environment variable
-APPEND-DEFAULT-RULE-REDIRECT() {
-        iptables -t nat -A BYPASS -p tcp -j REDIRECT --to $PORT_1
+APPEND-RULE-REDIRECT() {
+        iptables -t nat -A BYPASS -p tcp -j REDIRECT --to $PORT
 }
 
-# add custom white list in '$customip_dir/myips'
-APPEND-CUSTOM-RULE-WHITELIST() {
-	for file in "$customip_dir"/*
-	do
-		file_name=${file#*$customip_dir/}
-		port=${file_name#*--}
-		[[ $port =~ ^-?[0-9]+$ ]] || ( ipset_name=$file_name && iptables -t nat -A BYPASS -p tcp --match set --match-set $ipset_name dst -j RETURN )
-	done
-}
-
-# redirect ips in '$customip_dir/myips--1090'
-APPEND-CUSTOM-RULE-REDIRECT() {
-	for file in "$customip_dir"/*
-	do
-		file_name=${file#*$customip_dir/}
-		port=${file_name#*--}
-		if [[ $port =~ ^-?[0-9]+$ ]]; then
-			ipset_name=${file_name%--*}
-			iptables -t nat -A BYPASS -p tcp --match set --match-set $ipset_name dst -j REDIRECT --to $port
-		fi
-	done
-}
 
 INIT() {
 	./clean-rule $LAN
-	
+	./clean-ipset
+
 	# update ips in ipset
-	UPDATE-DEFAULT-IPSET
-	UPDATE-CUSTOM-IPSET
+	UPDATE-ALL-IPSETS
 
 	# create new CHAIN
 	CREATE-CHAIN
 
-	# append custom whitelist rule
-	APPEND-CUSTOM-RULE-WHITELIST
-    
-    # append dafault whitelist rule
-	APPEND-DEFAULT-RULE-WHITELIST
+  # append dafault whitelist rule
+	APPEND-RULE-WHITELIST
 
-	# append custom redirect rule
-	APPEND-CUSTOM-RULE-REDIRECT
-	
 	# append default redirect rule
-	APPEND-DEFAULT-RULE-REDIRECT
+	APPEND-RULE-REDIRECT
 
 	# check all rules
 	iptables -t nat -L -vn

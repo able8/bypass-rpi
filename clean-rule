@@ -1,6 +1,6 @@
 #!/bin/bash
 if [ "$1" = "" ]; then
-	echo "Clean needs WAN interface name."
+	echo "Clean needs LAN interface name."
 else
 	echo "clean start ..."
 	LAN=$1
