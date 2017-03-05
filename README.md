@@ -5,7 +5,7 @@ It uses iptables to redirect packets input from a interface to local port.
 
 * Fetch the code
 ```
-git clone git@github.com:dorrywhale/bypass.git
+git clone git@github.com:LaoLuMian/bypass-rpi.git
 ```
 
 * Modify config by adding vps in `02-vps`
