@@ -18,7 +18,7 @@ vim white/02-vps
 ```
 sudo mkdir -p /dorry_data/bypass
 sudo cp white/* /dorry_data/bypass/
-docker run -itd --privileged --restart=always --cap-add=NET_ADMIN --net=host -v /dorry_data/bypass:/bypass -e LAN=eth1 -e PORT=1080 --name router_bypass dorrypizza/bypass-rpi:0.1.0
+docker run -itd --privileged --restart=always --cap-add=NET_ADMIN --net=host -v /dorry_data/bypass:/bypass -e LAN=eth1 -e PORT=1080 --name router_bypass dorrypizza/bypass-rpi:0.2.0
 ```
 
 * clean rule
