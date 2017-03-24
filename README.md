@@ -14,12 +14,21 @@ cd bypass
 vim white/02-vps
 ```
 
-* Run bypass
+* Start bypass
 ```
-sudo mkdir -p /dorry_data/bypass
-sudo cp white/* /dorry_data/bypass/
-docker run -itd --privileged --restart=always --cap-add=NET_ADMIN --net=host -v /dorry_data/bypass:/bypass -e LAN=eth1 -e PORT=1080 --name router_bypass dorrypizza/bypass-rpi:0.2.0
+./bypass-control start eth1
 ```
+
+* Stop bypass
+```
+./bypass-control stop eth1
+```
+
+* Restart bypass
+```
+./bypass-control restart eth1
+```
+
 
 * clean rule
 ```
